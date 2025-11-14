@@ -1,60 +1,40 @@
-name: RDP-Loclx
+name: LocalXpose RDP Tunnel
 
 on:
   workflow_dispatch:
 
 jobs:
-  rdp:
-    runs-on: windows-latest
-    timeout-minutes: 60
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
+    - name: Checkout
+      uses: actions/checkout@v3
 
-      - name: Enable RDP
-        run: |
-          Set-ItemProperty `
-            -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
-            -Name "fDenyTSConnections" `
-            -Value 0 -Force
+    - name: Download LocalXpose
+      run: |
+        wget https://api.localxpose.io/api/downloads/loclx-linux-amd64.zip -O loclx.zip
+        unzip loclx.zip
+        chmod +x loclx
 
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+    - name: Set LocalXpose config
+      run: |
+        mkdir -p ~/.localxpose
+        echo "auth_token: ${{ secrets.LOCALXPOSE_TOKEN }}" > ~/.localxpose/config.yaml
 
-      - name: Create RDP User
-        run: |
-          $pass = "Qwerty123!"
-          $secure = ConvertTo-SecureString $pass -AsPlainText -Force
-          New-LocalUser -Name "user" -Password $secure -AccountNeverExpires
-          Add-LocalGroupMember -Group "Administrators" -Member "user"
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "user"
+    - name: Check Login
+      run: ./loclx account status || true
 
-          echo "USER=user" >> $env:GITHUB_ENV
-          echo "PASS=$pass" >> $env:GITHUB_ENV
+    - name: Install XRDP + Desktop
+      run: |
+        sudo apt update
+        sudo apt install -y xrdp xfce4
+        sudo sed -i 's/console/anybody/g' /etc/X11/Xwrapper.config
+        sudo systemctl enable xrdp
+        sudo systemctl restart xrdp
 
-      - name: Download LocalXpose
-        run: |
-          curl -Lo loclx.zip https://api.localxpose.io/api/downloads/loclx-windows-amd64.zip
-          tar -xf loclx.zip
-          ren loclx.exe loclx.exe
-
-      - name: Start LocalXpose Tunnel
-        run: |
-          .\loclx.exe account login --token ${{ secrets.LOCLX_TOKEN }}
-          .\loclx.exe tcp --port 3389 --region eu &
-          Start-Sleep -Seconds 5
-
-      - name: Show RDP Info
-        run: |
-          Write-Host "======================"
-          Write-Host "RDP Kullanıcı: $env:USER"
-          Write-Host "RDP Şifre: $env:PASS"
-          Write-Host "LocalXpose 3389 portu açıldı!"
-          Write-Host "Dashboard → https://localxpose.io/dashboard"
-          Write-Host "Orada sana PUBLIC HOST ve PORT verilecek."
-          Write-Host "======================"
-
-      - name: Keep Alive
-        run: |
-          while ($true) {
-            Write-Host "RDP + LocalXpose aktif..."
-            Start-Sleep -Seconds 60
-          }
+    - name: Start RDP Tunnel
+      run: |
+        echo "🔥 Tünel açılıyor..."
+        ./loclx tunnel tcp --to 3389
