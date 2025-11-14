@@ -1,4 +1,4 @@
-name: 25min-RDP
+name: Simple Windows RDP
 
 on:
   workflow_dispatch:
@@ -6,46 +6,37 @@ on:
 jobs:
   rdp:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
 
     steps:
-      - name: Enable RDP
-        run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+    - name: Enable RDP
+      run: |
+        Set-ItemProperty "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
-      - name: Create RDP User
-        run: |
-          net user RDPuser Password123! /add
-          net localgroup Administrators RDPuser /add
+    - name: Set Password
+      run: |
+        net user runneradmin "Gpt12345?"
 
-      - name: Install LocalXpose
-        run: |
-          Invoke-WebRequest "https://localxpose.io/windows/localxpose.exe" -OutFile "lx.exe"
+    - name: Install Chrome
+      run: |
+        Invoke-WebRequest "https://dl.google.com/chrome/install/375.126/chrome_installer.exe" -OutFile chrome.exe
+        Start-Process chrome.exe -ArgumentList "/silent" -Wait
 
-      - name: Start LocalXpose Tunnel (RDP Port 3389)
-        run: |
-          .\lx.exe tcp 3389 --token $env:LOCALTOKEN --region eu > tunnel.txt 2>&1
-          Get-Content tunnel.txt
-        env:
-          LOCALTOKEN: ${{ secrets.LOCALXPOSE_TOKEN }}
+    - name: Download LocalXpose
+      run: |
+        curl -Lo loclx.zip https://api.localxpose.io/api/downloads/loclx-windows-amd64.zip
+        tar -xf loclx.zip
+        ren loclx-windows-amd64.exe loclx.exe
 
-      - name: Show RDP Credentials
-        run: |
-          Write-Host "==============================================="
-          Write-Host " 🔥 RDP BİLGİLERİ 🔥"
-          Write-Host " Kullanıcı: RDPuser"
-          Write-Host " Şifre: Password123!"
-          Write-Host " Tünel Bilgisi aşağıda (LocalXpose çıktısı):"
-          Write-Host "==============================================="
-          Get-Content tunnel.txt
-          Write-Host "==============================================="
+    - name: Start Tunnel for RDP (3389)
+      run: |
+        ./loclx.exe tunnel tcp --port 3389 --region eu &
+        Start-Sleep -Seconds 8
 
-      - name: Keep alive for 25 minutes
-        run: |
-          Write-Host "RDP aktif. 25 dakika boyunca açık kalacak..."
-          Start-Sleep -Seconds 1500
+    - name: Show RDP Info
+      run: |
+        ./loclx.exe status
 
-      - name: Shutdown
-        run: |
-          Write-Host "RDP süresi doldu. Tünel ve oturum kapatılıyor..."
+    - name: Keep Alive (25 min)
+      run: Start-Sleep -Seconds 1500
