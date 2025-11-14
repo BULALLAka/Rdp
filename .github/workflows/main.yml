@@ -1,4 +1,4 @@
-name: Simple Windows RDP
+name: RDP
 
 on:
   workflow_dispatch:
@@ -6,37 +6,43 @@ on:
 jobs:
   rdp:
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
 
     steps:
-    - name: Enable RDP
-      run: |
-        Set-ItemProperty "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
-        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
-    - name: Set Password
-      run: |
-        net user runneradmin "Gpt12345?"
+      - name: Enable RDP
+        run: |
+          Set-ItemProperty `
+            -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
+            -Name "fDenyTSConnections" `
+            -Value 0 -Force
 
-    - name: Install Chrome
-      run: |
-        Invoke-WebRequest "https://dl.google.com/chrome/install/375.126/chrome_installer.exe" -OutFile chrome.exe
-        Start-Process chrome.exe -ArgumentList "/silent" -Wait
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
-    - name: Download LocalXpose
-      run: |
-        curl -Lo loclx.zip https://api.localxpose.io/api/downloads/loclx-windows-amd64.zip
-        tar -xf loclx.zip
-        ren loclx-windows-amd64.exe loclx.exe
+      - name: Create RDP User
+        run: |
+          $pass = "Qwerty123!"
+          $secure = ConvertTo-SecureString $pass -AsPlainText -Force
+          New-LocalUser -Name "user" -Password $secure -AccountNeverExpires
+          Add-LocalGroupMember -Group "Administrators" -Member "user"
 
-    - name: Start Tunnel for RDP (3389)
-      run: |
-        ./loclx.exe tunnel tcp --port 3389 --region eu &
-        Start-Sleep -Seconds 8
+          echo "Created user: user"
+          echo "Password: $pass"
 
-    - name: Show RDP Info
-      run: |
-        ./loclx.exe status
+      - name: Show RDP IP
+        run: |
+          $ip = (Get-NetIPAddress -AddressFamily IPv4 |
+            Where-Object { $_.InterfaceAlias -eq "Ethernet" }).IPAddress
 
-    - name: Keep Alive (25 min)
-      run: Start-Sleep -Seconds 1500
+          Write-Host "======================"
+          Write-Host "   RDP IP: $ip"
+          Write-Host "   USER: user"
+          Write-Host "   PASS: Qwerty123!"
+          Write-Host "======================"
+
+      - name: Keep Alive
+        run: |
+          while ($true) {
+            Write-Host "RDP Active..."
+            Start-Sleep -Seconds 120
+          }
