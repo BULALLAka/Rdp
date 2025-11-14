@@ -1,38 +1,32 @@
-name: LocalXpose RDP Tunnel
+name: LocalXpose RDP
 
 on:
   workflow_dispatch:
 
 jobs:
-  run:
+  runner:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-
     - name: Download LocalXpose
       run: |
         wget https://api.localxpose.io/api/downloads/loclx-linux-amd64.zip -O loclx.zip
         unzip loclx.zip
         chmod +x loclx
 
-    - name: Create LocalXpose config (TOKEN DIRECT)
+    - name: Login (Direct Token)
       run: |
-        mkdir -p ~/.localxpose
-        echo "auth_token: BwCs3BfpLXSaN6gVbvO0JPkURiFobhGvTZGkKKT1" > ~/.localxpose/config.yaml
+        ./loclx account login BwCs3BfpLXSaN6gVbvO0JPkURiFobhGvTZGkKKT1
 
-    - name: Check login
+    - name: Verify Login
       run: |
-        ./loclx account status || true
+        ./loclx account status
 
     - name: Install XRDP + Desktop
       run: |
         sudo apt update
         sudo apt install -y xrdp xfce4
-        sudo sed -i 's/console/anybody/g' /etc/X11/Xwrapper.config
-        sudo systemctl enable xrdp
         sudo systemctl restart xrdp
 
     - name: Start RDP Tunnel
