@@ -1,4 +1,4 @@
-name: RDP
+name: RDP-Loclx
 
 on:
   workflow_dispatch:
@@ -25,24 +25,36 @@ jobs:
           $secure = ConvertTo-SecureString $pass -AsPlainText -Force
           New-LocalUser -Name "user" -Password $secure -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "user"
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "user"
 
-          echo "Created user: user"
-          echo "Password: $pass"
+          echo "USER=user" >> $env:GITHUB_ENV
+          echo "PASS=$pass" >> $env:GITHUB_ENV
 
-      - name: Show RDP IP
+      - name: Download LocalXpose
         run: |
-          $ip = (Get-NetIPAddress -AddressFamily IPv4 |
-            Where-Object { $_.InterfaceAlias -eq "Ethernet" }).IPAddress
+          curl -Lo loclx.zip https://api.localxpose.io/api/downloads/loclx-windows-amd64.zip
+          tar -xf loclx.zip
+          ren loclx.exe loclx.exe
 
+      - name: Start LocalXpose Tunnel
+        run: |
+          .\loclx.exe account login --token ${{ secrets.LOCLX_TOKEN }}
+          .\loclx.exe tcp --port 3389 --region eu &
+          Start-Sleep -Seconds 5
+
+      - name: Show RDP Info
+        run: |
           Write-Host "======================"
-          Write-Host "   RDP IP: $ip"
-          Write-Host "   USER: user"
-          Write-Host "   PASS: Qwerty123!"
+          Write-Host "RDP Kullanıcı: $env:USER"
+          Write-Host "RDP Şifre: $env:PASS"
+          Write-Host "LocalXpose 3389 portu açıldı!"
+          Write-Host "Dashboard → https://localxpose.io/dashboard"
+          Write-Host "Orada sana PUBLIC HOST ve PORT verilecek."
           Write-Host "======================"
 
       - name: Keep Alive
         run: |
           while ($true) {
-            Write-Host "RDP Active..."
-            Start-Sleep -Seconds 120
+            Write-Host "RDP + LocalXpose aktif..."
+            Start-Sleep -Seconds 60
           }
