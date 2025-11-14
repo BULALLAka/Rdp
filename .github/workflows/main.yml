@@ -1,0 +1,49 @@
+name: 25min-RDP
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rdp:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Enable RDP
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+      - name: Create RDP User
+        run: |
+          net user RDPuser Password123! /add
+          net localgroup Administrators RDPuser /add
+
+      - name: Install LocalXpose
+        run: |
+          Invoke-WebRequest https://localxpose.io/windows/localxpose.exe -OutFile lx.exe
+
+      - name: Start LocalXpose Tunnel (RDP Port 3389)
+        run: |
+          Start-Process -NoNewWindow PowerShell -ArgumentList "./lx.exe tcp 3389 --region eu --token $env:LOCALTOKEN"
+        env:
+          LOCALTOKEN: ${{ secrets.LOCALXPOSE_TOKEN }}
+
+      - name: Show Connection Info
+        run: |
+          Write-Host "==============================="
+          Write-Host "      🔥 RDP BİLGİLERİ 🔥"
+          Write-Host "Kullanıcı: RDPuser"
+          Write-Host "Şifre: Password123!"
+          Write-Host "LocalXpose panel → https://localxpose.io/dashboard"
+          Write-Host "Oradan TUNNEL URL'inizi göreceksiniz."
+          Write-Host "==============================="
+
+      - name: Keep Alive for 25 minutes
+        run: |
+          Write-Host "RDP aktif... 25 dakika açık kalacak."
+          Start-Sleep -Seconds 1500
+
+      - name: Auto Shutdown
+        run: |
+          Write-Host "Süre doldu. RDP kapatılıyor..."
