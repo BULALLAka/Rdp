@@ -18,13 +18,14 @@ jobs:
         unzip loclx.zip
         chmod +x loclx
 
-    - name: Set LocalXpose config
+    - name: Create LocalXpose config (TOKEN DIRECT)
       run: |
         mkdir -p ~/.localxpose
-        echo "auth_token: ${{ secrets.LOCALXPOSE_TOKEN }}" > ~/.localxpose/config.yaml
+        echo "auth_token: BwCs3BfpLXSaN6gVbvO0JPkURiFobhGvTZGkKKT1" > ~/.localxpose/config.yaml
 
-    - name: Check Login
-      run: ./loclx account status || true
+    - name: Check login
+      run: |
+        ./loclx account status || true
 
     - name: Install XRDP + Desktop
       run: |
