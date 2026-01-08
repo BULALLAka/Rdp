@@ -1,25 +1,39 @@
-name: Linux RDP Setup
+name: FREE LINUX RDP
 
 on:
-  workflow_dispatch: # Elle tetikleme
+  workflow_dispatch:
 
 jobs:
   rdp:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
 
     steps:
-    - name: Install Desktop Environment and xrdp
+    - name: Update system
+      run: sudo apt update
+
+    - name: Install Desktop + XRDP
       run: |
-        sudo apt update
         sudo apt install -y xfce4 xfce4-goodies xrdp
         sudo systemctl enable xrdp
         sudo systemctl start xrdp
 
-    - name: Set Password for RDP
+    - name: Create RDP User
       run: |
-        echo "ubuntu:MyRdpPassword123" | sudo chpasswd
+        sudo useradd -m rdpuser
+        echo "rdpuser:123456" | sudo chpasswd
+        sudo adduser rdpuser sudo
 
-    - name: Show RDP Info
+    - name: Install ngrok
       run: |
-        echo "Use this command to get your runner's IP (temporary):"
-        ip addr show
+        wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip
+        unzip ngrok-stable-linux-amd64.zip
+
+    - name: Start ngrok RDP
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_TOKEN }}
+      run: |
+        ./ngrok authtoken $NGROK_AUTH_TOKEN
+        ./ngrok tcp 3389 &
+        sleep 10
+        curl http://localhost:4040/api/tunnels
