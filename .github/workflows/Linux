@@ -1,0 +1,25 @@
+name: Linux RDP Setup
+
+on:
+  workflow_dispatch: # Elle tetikleme
+
+jobs:
+  rdp:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install Desktop Environment and xrdp
+      run: |
+        sudo apt update
+        sudo apt install -y xfce4 xfce4-goodies xrdp
+        sudo systemctl enable xrdp
+        sudo systemctl start xrdp
+
+    - name: Set Password for RDP
+      run: |
+        echo "ubuntu:MyRdpPassword123" | sudo chpasswd
+
+    - name: Show RDP Info
+      run: |
+        echo "Use this command to get your runner's IP (temporary):"
+        ip addr show
